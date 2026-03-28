@@ -38,6 +38,9 @@ class DashboardResponse(BaseModel):
     verification_reward: float
     referral_reward: float
     invite_link: str | None
+    pending_rewards: int
+    approved_rewards: int
+    rejected_rewards: int
 
 
 class ClaimRewardResponse(BaseModel):

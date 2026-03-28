@@ -476,6 +476,9 @@ def get_dashboard(telegram_user_id: int, db: Session = Depends(get_db)) -> Dashb
             verification_reward=0,
             referral_reward=0,
             invite_link=None,
+            pending_rewards=0,
+            approved_rewards=0,
+            rejected_rewards=0,
         )
 
     invite_link = db.scalar(select(ReferralLink.invite_link).where(ReferralLink.user_id == user.id))
@@ -504,6 +507,12 @@ def get_dashboard(telegram_user_id: int, db: Session = Depends(get_db)) -> Dashb
     pending_count = db.scalar(
         select(func.count(Reward.id)).where(Reward.user_id == user.id, Reward.status == RewardStatus.pending)
     ) or 0
+    approved_count = db.scalar(
+        select(func.count(Reward.id)).where(Reward.user_id == user.id, Reward.status == RewardStatus.approved)
+    ) or 0
+    rejected_count = db.scalar(
+        select(func.count(Reward.id)).where(Reward.user_id == user.id, Reward.status == RewardStatus.rejected)
+    ) or 0
 
     status = "pending" if pending_count > 0 else "approved"
     if user.fraud_flag:
@@ -516,6 +525,9 @@ def get_dashboard(telegram_user_id: int, db: Session = Depends(get_db)) -> Dashb
         verification_reward=float(verification_reward),
         referral_reward=float(referral_reward),
         invite_link=invite_link,
+        pending_rewards=int(pending_count),
+        approved_rewards=int(approved_count),
+        rejected_rewards=int(rejected_count),
     )
 
 

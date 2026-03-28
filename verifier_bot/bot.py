@@ -1,4 +1,4 @@
-"""Verifier bot entrypoint."""
+"""Verifier bot entrypoint with Telegram-native dashboard UX."""
 
 from __future__ import annotations
 
@@ -11,55 +11,117 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.constants import ParseMode
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes
 
 from shared.config import get_settings
 from shared.logging_utils import setup_logging
+from shared.telegram_ui import bool_badge
 from verifier_bot.api_client import BackendClient
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
 
+CB_VERIFY = "verifier:verify"
+CB_REFRESH = "verifier:refresh"
+CB_HELP = "verifier:help"
+CB_BACK = "verifier:back"
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    keyboard = InlineKeyboardMarkup(
+
+def _build_main_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("Join Channel", url=settings.channel_join_url)],
-            [InlineKeyboardButton("Join Group", url=settings.group_join_url)],
-            [InlineKeyboardButton("Verify", callback_data="verify_membership")],
-            [InlineKeyboardButton("✨ Open Verifier Dashboard", url=f"{settings.web_dashboard_base_url}/dashboard/verifier")],
+            [
+                InlineKeyboardButton(settings.verifier_btn_join_channel, url=settings.channel_join_url),
+                InlineKeyboardButton(settings.verifier_btn_join_group, url=settings.group_join_url),
+            ],
+            [
+                InlineKeyboardButton(settings.verifier_btn_verify_now, callback_data=CB_VERIFY),
+                InlineKeyboardButton(settings.verifier_btn_refresh_status, callback_data=CB_REFRESH),
+            ],
+            [InlineKeyboardButton(settings.verifier_btn_help, callback_data=CB_HELP)],
         ]
     )
-    await update.effective_message.reply_text(settings.verifier_start_text, reply_markup=keyboard)
 
 
-async def verify_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    await query.answer()
+def _build_help_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([[InlineKeyboardButton(settings.verifier_btn_back, callback_data=CB_BACK)]])
 
-    user = query.from_user
+
+def _build_dashboard_text(verification: dict) -> str:
+    missing_items = set(verification.get("missing_items", []))
+    is_verified = verification.get("verified", False)
+
+    channel_ok = "channel" not in missing_items
+    group_ok = "group" not in missing_items
+
+    return (
+        f"{settings.verifier_start_text}\n\n"
+        f"<b>Progress</b>\n"
+        f"• Channel joined: {bool_badge(channel_ok)}\n"
+        f"• Group joined: {bool_badge(group_ok)}\n"
+        f"• Verified: {bool_badge(is_verified)}\n\n"
+        f"Tap <b>Verify Now</b> after joining both destinations."
+    )
+
+
+async def _fetch_verification_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> dict:
+    user = update.effective_user
     client: BackendClient = context.application.bot_data["backend_client"]
+    result = await client.verify_membership(
+        telegram_user_id=user.id,
+        username=user.username,
+        first_name=user.first_name,
+    )
+    return result
 
+
+async def _render_or_edit_panel(
+    update: Update,
+    text: str,
+    keyboard: InlineKeyboardMarkup,
+) -> None:
+    query = update.callback_query
+    if query and query.message:
+        try:
+            await query.edit_message_text(text=text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
+            return
+        except Exception:
+            logger.exception("Failed editing verifier dashboard message")
+
+    if update.effective_message:
+        await update.effective_message.reply_text(text=text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
+
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
-        result = await client.verify_membership(
-            telegram_user_id=user.id,
-            username=user.username,
-            first_name=user.first_name,
-        )
+        result = await _fetch_verification_status(update, context)
     except Exception:
-        logger.warning("Verification request failed", exc_info=True)
-        await query.message.reply_text("Temporary error. Please try again in a minute.")
+        logger.warning("Verification status fetch failed", exc_info=True)
+        await _render_or_edit_panel(
+            update,
+            "⚠️ Verification service is temporarily unavailable. Please tap Refresh Status shortly.",
+            _build_main_keyboard(),
+        )
         return
 
     if result.get("backend_error"):
-        await query.message.reply_text(f"⚠️ {result['backend_error']}")
+        await _render_or_edit_panel(update, f"⚠️ {result['backend_error']}", _build_main_keyboard())
         return
 
-    if result.get("verified"):
-        await query.message.reply_text(settings.verifier_verify_success_text)
-    else:
-        missing_items = ", ".join(result.get("missing_items", [])) or "unknown"
-        await query.message.reply_text(settings.verifier_verify_fail_text.format(missing_items=missing_items))
+    await _render_or_edit_panel(update, _build_dashboard_text(result), _build_main_keyboard())
+
+
+async def verify_or_refresh(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    await start(update, context)
+
+
+async def show_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    await _render_or_edit_panel(update, settings.verifier_help_text, _build_help_keyboard())
 
 
 async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -75,7 +137,8 @@ def main() -> None:
     )
 
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(verify_callback, pattern="^verify_membership$"))
+    app.add_handler(CallbackQueryHandler(verify_or_refresh, pattern=f"^({CB_VERIFY}|{CB_REFRESH}|{CB_BACK})$"))
+    app.add_handler(CallbackQueryHandler(show_help, pattern=f"^{CB_HELP}$"))
     app.add_error_handler(on_error)
 
     logger.info("Verifier bot started")
