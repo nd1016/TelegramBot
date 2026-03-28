@@ -6,7 +6,7 @@ import enum
 from datetime import datetime
 
 from sqlalchemy import BigInteger, Boolean, DateTime, Enum, Float, ForeignKey, Integer, String, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from shared.database import Base
 
@@ -88,3 +88,15 @@ class Reward(Base):
     __table_args__ = (
         UniqueConstraint("user_id", "reward_type", "source_user_id", name="uq_reward_uniqueness"),
     )
+
+
+class WelcomeSetting(Base):
+    __tablename__ = "welcome_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    chat_id: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    message_template: Mapped[str] = mapped_column(String(2048))
+    button_text: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    button_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

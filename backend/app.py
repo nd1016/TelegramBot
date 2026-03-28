@@ -1,4 +1,4 @@
-"""FastAPI backend shared by verifier and reward bots."""
+"""FastAPI backend shared by verifier, reward, and welcome bots."""
 
 from __future__ import annotations
 
@@ -24,6 +24,7 @@ from shared.models import (
     User,
     Verification,
     VerificationStatus,
+    WelcomeSetting,
 )
 from shared.schemas import (
     ClaimRewardResponse,
@@ -31,8 +32,10 @@ from shared.schemas import (
     CreateReferralLinkResponse,
     DashboardResponse,
     RecordJoinEventRequest,
+    UpsertWelcomeSettingsRequest,
     VerifyMembershipRequest,
     VerifyMembershipResponse,
+    WelcomeSettingsResponse,
 )
 
 settings = get_settings()
@@ -93,6 +96,22 @@ def _get_bot(bot_token: str) -> Bot:
         bot = Bot(token=bot_token)
         BOT_CACHE[bot_token] = bot
     return bot
+
+
+def _get_or_create_welcome_settings(db: Session, chat_id: str) -> WelcomeSetting:
+    setting = db.scalar(select(WelcomeSetting).where(WelcomeSetting.chat_id == chat_id))
+    if setting:
+        return setting
+
+    setting = WelcomeSetting(
+        chat_id=chat_id,
+        message_template=settings.welcome_message_text,
+        button_text=settings.welcome_button_text,
+        button_url=settings.welcome_button_url,
+    )
+    db.add(setting)
+    db.flush()
+    return setting
 
 
 async def _is_member(bot_token: str, chat_id: str, user_id: int) -> bool:
@@ -278,6 +297,9 @@ def get_dashboard(telegram_user_id: int, db: Session = Depends(get_db)) -> Dashb
             verification_reward=0,
             referral_reward=0,
             invite_link=None,
+            pending_rewards=0,
+            approved_rewards=0,
+            rejected_rewards=0,
         )
 
     invite_link = db.scalar(select(ReferralLink.invite_link).where(ReferralLink.user_id == user.id))
@@ -306,6 +328,12 @@ def get_dashboard(telegram_user_id: int, db: Session = Depends(get_db)) -> Dashb
     pending_count = db.scalar(
         select(func.count(Reward.id)).where(Reward.user_id == user.id, Reward.status == RewardStatus.pending)
     ) or 0
+    approved_count = db.scalar(
+        select(func.count(Reward.id)).where(Reward.user_id == user.id, Reward.status == RewardStatus.approved)
+    ) or 0
+    rejected_count = db.scalar(
+        select(func.count(Reward.id)).where(Reward.user_id == user.id, Reward.status == RewardStatus.rejected)
+    ) or 0
 
     status = "pending" if pending_count > 0 else "approved"
     if user.fraud_flag:
@@ -318,6 +346,9 @@ def get_dashboard(telegram_user_id: int, db: Session = Depends(get_db)) -> Dashb
         verification_reward=float(verification_reward),
         referral_reward=float(referral_reward),
         invite_link=invite_link,
+        pending_rewards=int(pending_count),
+        approved_rewards=int(approved_count),
+        rejected_rewards=int(rejected_count),
     )
 
 
@@ -339,3 +370,31 @@ def claim_reward_status(telegram_user_id: int, db: Session = Depends(get_db)) ->
 
     db.commit()
     return ClaimRewardResponse(approved_count=approved_count)
+
+
+@app.get("/welcome-settings/{chat_id}", response_model=WelcomeSettingsResponse)
+def get_welcome_settings(chat_id: str, db: Session = Depends(get_db)) -> WelcomeSettingsResponse:
+    setting = _get_or_create_welcome_settings(db, chat_id)
+    db.commit()
+    return WelcomeSettingsResponse(
+        chat_id=setting.chat_id,
+        message_template=setting.message_template,
+        button_text=setting.button_text,
+        button_url=setting.button_url,
+    )
+
+
+@app.post("/welcome-settings", response_model=WelcomeSettingsResponse)
+def upsert_welcome_settings(payload: UpsertWelcomeSettingsRequest, db: Session = Depends(get_db)) -> WelcomeSettingsResponse:
+    setting = _get_or_create_welcome_settings(db, payload.chat_id)
+    setting.message_template = payload.message_template
+    setting.button_text = payload.button_text
+    setting.button_url = payload.button_url
+    db.commit()
+    db.refresh(setting)
+    return WelcomeSettingsResponse(
+        chat_id=setting.chat_id,
+        message_template=setting.message_template,
+        button_text=setting.button_text,
+        button_url=setting.button_url,
+    )
