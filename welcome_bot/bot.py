@@ -32,16 +32,16 @@ def _main_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("🔄 Refresh Settings", callback_data=CB_REFRESH),
-                InlineKeyboardButton("🧪 Preview Message", callback_data=CB_PREVIEW),
+                InlineKeyboardButton(settings.welcome_btn_refresh, callback_data=CB_REFRESH),
+                InlineKeyboardButton(settings.welcome_btn_preview, callback_data=CB_PREVIEW),
             ],
-            [InlineKeyboardButton("ℹ️ Help", callback_data=CB_HELP)],
+            [InlineKeyboardButton(settings.welcome_btn_help, callback_data=CB_HELP)],
         ]
     )
 
 
 def _back_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back", callback_data=CB_BACK)]])
+    return InlineKeyboardMarkup([[InlineKeyboardButton(settings.welcome_btn_back, callback_data=CB_BACK)]])
 
 
 def _resolve_chat_context(update: Update) -> tuple[str, str]:

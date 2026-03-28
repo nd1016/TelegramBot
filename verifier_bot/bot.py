@@ -32,20 +32,20 @@ def _build_main_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("📢 Join Channel", url=settings.channel_join_url),
-                InlineKeyboardButton("👥 Join Group", url=settings.group_join_url),
+                InlineKeyboardButton(settings.verifier_btn_join_channel, url=settings.channel_join_url),
+                InlineKeyboardButton(settings.verifier_btn_join_group, url=settings.group_join_url),
             ],
             [
-                InlineKeyboardButton("✅ Verify Now", callback_data=CB_VERIFY),
-                InlineKeyboardButton("🔄 Refresh Status", callback_data=CB_REFRESH),
+                InlineKeyboardButton(settings.verifier_btn_verify_now, callback_data=CB_VERIFY),
+                InlineKeyboardButton(settings.verifier_btn_refresh_status, callback_data=CB_REFRESH),
             ],
-            [InlineKeyboardButton("ℹ️ Help", callback_data=CB_HELP)],
+            [InlineKeyboardButton(settings.verifier_btn_help, callback_data=CB_HELP)],
         ]
     )
 
 
 def _build_help_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back", callback_data=CB_BACK)]])
+    return InlineKeyboardMarkup([[InlineKeyboardButton(settings.verifier_btn_back, callback_data=CB_BACK)]])
 
 
 def _build_dashboard_text(verification: dict) -> str:

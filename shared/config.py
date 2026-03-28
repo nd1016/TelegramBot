@@ -43,17 +43,33 @@ class Settings:
     verifier_verify_success_text: str
     verifier_verify_fail_text: str
     verifier_help_text: str
+    verifier_btn_join_channel: str
+    verifier_btn_join_group: str
+    verifier_btn_verify_now: str
+    verifier_btn_refresh_status: str
+    verifier_btn_help: str
+    verifier_btn_back: str
 
     reward_not_verified_text: str
     reward_dashboard_text: str
     reward_claim_result_text: str
     reward_how_it_works_text: str
+    reward_btn_refresh: str
+    reward_btn_my_rewards: str
+    reward_btn_referral_link: str
+    reward_btn_how_it_works: str
+    reward_btn_claim_status: str
+    reward_btn_back_dashboard: str
 
     welcome_message_text: str
     welcome_button_text: str
     welcome_button_url: str
     welcome_start_text: str
     welcome_help_text: str
+    welcome_btn_refresh: str
+    welcome_btn_preview: str
+    welcome_btn_help: str
+    welcome_btn_back: str
 
     ignore_bots: bool
     log_level: str
@@ -106,6 +122,12 @@ def get_settings() -> Settings:
                 ),
             )
         ),
+        verifier_btn_join_channel=os.getenv("VERIFIER_BTN_JOIN_CHANNEL", "📢 Join Channel"),
+        verifier_btn_join_group=os.getenv("VERIFIER_BTN_JOIN_GROUP", "👥 Join Group"),
+        verifier_btn_verify_now=os.getenv("VERIFIER_BTN_VERIFY_NOW", "✅ Verify Now"),
+        verifier_btn_refresh_status=os.getenv("VERIFIER_BTN_REFRESH_STATUS", "🔄 Refresh Status"),
+        verifier_btn_help=os.getenv("VERIFIER_BTN_HELP", "ℹ️ Help"),
+        verifier_btn_back=os.getenv("VERIFIER_BTN_BACK", "⬅️ Back"),
         reward_not_verified_text=_normalize_multiline(
             os.getenv(
                 "REWARD_NOT_VERIFIED_TEXT",
@@ -145,6 +167,12 @@ def get_settings() -> Settings:
                 ),
             )
         ),
+        reward_btn_refresh=os.getenv("REWARD_BTN_REFRESH", "🔄 Refresh"),
+        reward_btn_my_rewards=os.getenv("REWARD_BTN_MY_REWARDS", "💰 My Rewards"),
+        reward_btn_referral_link=os.getenv("REWARD_BTN_REFERRAL_LINK", "🔗 My Referral Link"),
+        reward_btn_how_it_works=os.getenv("REWARD_BTN_HOW_IT_WORKS", "🧭 How It Works"),
+        reward_btn_claim_status=os.getenv("REWARD_BTN_CLAIM_STATUS", "🧾 Claim Status"),
+        reward_btn_back_dashboard=os.getenv("REWARD_BTN_BACK_DASHBOARD", "⬅️ Back to Dashboard"),
         welcome_message_text=_normalize_multiline(
             os.getenv(
                 "WELCOME_MESSAGE_TEXT",
@@ -173,6 +201,10 @@ def get_settings() -> Settings:
                 ),
             )
         ),
+        welcome_btn_refresh=os.getenv("WELCOME_BTN_REFRESH", "🔄 Refresh Settings"),
+        welcome_btn_preview=os.getenv("WELCOME_BTN_PREVIEW", "🧪 Preview Message"),
+        welcome_btn_help=os.getenv("WELCOME_BTN_HELP", "ℹ️ Help"),
+        welcome_btn_back=os.getenv("WELCOME_BTN_BACK", "⬅️ Back"),
         ignore_bots=_to_bool(os.getenv("IGNORE_BOTS"), default=True),
         log_level=os.getenv("LOG_LEVEL", "INFO").upper(),
     )

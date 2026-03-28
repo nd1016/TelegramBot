@@ -35,20 +35,20 @@ def _main_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("🔄 Refresh", callback_data=CB_REFRESH),
-                InlineKeyboardButton("💰 My Rewards", callback_data=CB_REWARDS),
+                InlineKeyboardButton(settings.reward_btn_refresh, callback_data=CB_REFRESH),
+                InlineKeyboardButton(settings.reward_btn_my_rewards, callback_data=CB_REWARDS),
             ],
             [
-                InlineKeyboardButton("🔗 My Referral Link", callback_data=CB_LINK),
-                InlineKeyboardButton("🧭 How It Works", callback_data=CB_HOW),
+                InlineKeyboardButton(settings.reward_btn_referral_link, callback_data=CB_LINK),
+                InlineKeyboardButton(settings.reward_btn_how_it_works, callback_data=CB_HOW),
             ],
-            [InlineKeyboardButton("🧾 Claim Status", callback_data=CB_CLAIM)],
+            [InlineKeyboardButton(settings.reward_btn_claim_status, callback_data=CB_CLAIM)],
         ]
     )
 
 
 def _back_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back to Dashboard", callback_data=CB_BACK)]])
+    return InlineKeyboardMarkup([[InlineKeyboardButton(settings.reward_btn_back_dashboard, callback_data=CB_BACK)]])
 
 
 def _safe_reward_status(status: str) -> str:

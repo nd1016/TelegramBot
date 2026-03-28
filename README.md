@@ -81,6 +81,11 @@ shared/         -> config, DB session, models, schemas, logging, Telegram UI hel
    python -m welcome_bot.bot
    ```
 
+
+## UI customization
+
+All panel text and button labels are configurable from `.env` (for example: `VERIFIER_BTN_*`, `REWARD_BTN_*`, `WELCOME_BTN_*`).
+
 ## Copy/paste snippets
 
 ### Update welcome settings
