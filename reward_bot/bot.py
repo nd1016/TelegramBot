@@ -10,7 +10,7 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from telegram import Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
 from reward_bot.api_client import BackendClient
@@ -51,7 +51,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         referral_reward=dashboard.get("referral_reward", 0),
         invite_link=dashboard.get("invite_link", "Unavailable"),
     )
-    await update.effective_message.reply_text(text)
+    keyboard = InlineKeyboardMarkup(
+        [[InlineKeyboardButton("✨ Open Reward Dashboard", url=f"{settings.web_dashboard_base_url}/dashboard/reward")]]
+    )
+    await update.effective_message.reply_text(text, reply_markup=keyboard)
 
 
 async def claim(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

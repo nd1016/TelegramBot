@@ -42,3 +42,17 @@ class DashboardResponse(BaseModel):
 
 class ClaimRewardResponse(BaseModel):
     approved_count: int
+
+
+class WelcomeSettingsResponse(BaseModel):
+    chat_id: str
+    message_template: str
+    button_text: str | None
+    button_url: str | None
+
+
+class UpsertWelcomeSettingsRequest(BaseModel):
+    chat_id: str
+    message_template: str
+    button_text: str | None = None
+    button_url: str | None = None

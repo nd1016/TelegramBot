@@ -29,6 +29,7 @@ class Settings:
 
     verifier_bot_token: str
     reward_bot_token: str
+    welcome_bot_token: str
 
     target_channel_id: str
     target_group_id: str
@@ -46,6 +47,12 @@ class Settings:
     reward_dashboard_text: str
     reward_claim_result_text: str
 
+    welcome_message_text: str
+    welcome_button_text: str
+    welcome_button_url: str
+
+    web_dashboard_base_url: str
+
     ignore_bots: bool
     log_level: str
 
@@ -58,6 +65,7 @@ def get_settings() -> Settings:
         backend_port=int(os.getenv("BACKEND_PORT", "8000")),
         verifier_bot_token=os.getenv("VERIFIER_BOT_TOKEN", ""),
         reward_bot_token=os.getenv("REWARD_BOT_TOKEN", ""),
+        welcome_bot_token=os.getenv("WELCOME_BOT_TOKEN", ""),
         target_channel_id=os.getenv("TARGET_CHANNEL_ID", ""),
         target_group_id=os.getenv("TARGET_GROUP_ID", ""),
         channel_join_url=os.getenv("CHANNEL_JOIN_URL", "https://t.me/example_channel"),
@@ -107,6 +115,15 @@ def get_settings() -> Settings:
                 "Claim request processed. {approved_count} rewards approved.",
             )
         ),
+        welcome_message_text=_normalize_multiline(
+            os.getenv(
+                "WELCOME_MESSAGE_TEXT",
+                "👋 Welcome {first_name} to the group!\nRead the rules and enjoy your stay.",
+            )
+        ),
+        welcome_button_text=os.getenv("WELCOME_BUTTON_TEXT", "📌 Group Rules"),
+        welcome_button_url=os.getenv("WELCOME_BUTTON_URL", "https://t.me/example_group"),
+        web_dashboard_base_url=os.getenv("WEB_DASHBOARD_BASE_URL", "http://127.0.0.1:8000"),
         ignore_bots=_to_bool(os.getenv("IGNORE_BOTS"), default=True),
         log_level=os.getenv("LOG_LEVEL", "INFO").upper(),
     )
