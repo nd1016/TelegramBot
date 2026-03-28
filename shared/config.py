@@ -29,6 +29,7 @@ class Settings:
 
     verifier_bot_token: str
     reward_bot_token: str
+    welcome_bot_token: str
 
     target_channel_id: str
     target_group_id: str
@@ -41,14 +42,37 @@ class Settings:
     verifier_start_text: str
     verifier_verify_success_text: str
     verifier_verify_fail_text: str
+    verifier_help_text: str
+    verifier_btn_join_channel: str
+    verifier_btn_join_group: str
+    verifier_btn_verify_now: str
+    verifier_btn_refresh_status: str
+    verifier_btn_help: str
+    verifier_btn_back: str
 
     reward_not_verified_text: str
     reward_dashboard_text: str
     reward_claim_result_text: str
+    reward_how_it_works_text: str
+    reward_btn_refresh: str
+    reward_btn_my_rewards: str
+    reward_btn_referral_link: str
+    reward_btn_how_it_works: str
+    reward_btn_claim_status: str
+    reward_btn_back_dashboard: str
+
+    welcome_message_text: str
+    welcome_button_text: str
+    welcome_button_url: str
+    welcome_start_text: str
+    welcome_help_text: str
+    welcome_btn_refresh: str
+    welcome_btn_preview: str
+    welcome_btn_help: str
+    welcome_btn_back: str
 
     ignore_bots: bool
     log_level: str
-
 
 
 def get_settings() -> Settings:
@@ -58,6 +82,7 @@ def get_settings() -> Settings:
         backend_port=int(os.getenv("BACKEND_PORT", "8000")),
         verifier_bot_token=os.getenv("VERIFIER_BOT_TOKEN", ""),
         reward_bot_token=os.getenv("REWARD_BOT_TOKEN", ""),
+        welcome_bot_token=os.getenv("WELCOME_BOT_TOKEN", ""),
         target_channel_id=os.getenv("TARGET_CHANNEL_ID", ""),
         target_group_id=os.getenv("TARGET_GROUP_ID", ""),
         channel_join_url=os.getenv("CHANNEL_JOIN_URL", "https://t.me/example_channel"),
@@ -67,13 +92,16 @@ def get_settings() -> Settings:
         verifier_start_text=_normalize_multiline(
             os.getenv(
                 "VERIFIER_START_TEXT",
-                "Welcome! Please join our channel and group, then tap Verify.",
+                (
+                    "🔐 <b>Verification Dashboard</b>\n"
+                    "Keep your access active by joining both destinations and tapping verify."
+                ),
             )
         ),
         verifier_verify_success_text=_normalize_multiline(
             os.getenv(
                 "VERIFIER_VERIFY_SUCCESS_TEXT",
-                "✅ You are verified! You can now use the Reward Bot.",
+                "✅ You are verified! Open the Reward Bot to track rewards.",
             )
         ),
         verifier_verify_fail_text=_normalize_multiline(
@@ -82,6 +110,24 @@ def get_settings() -> Settings:
                 "❌ Verification incomplete. Missing: {missing_items}.",
             )
         ),
+        verifier_help_text=_normalize_multiline(
+            os.getenv(
+                "VERIFIER_HELP_TEXT",
+                (
+                    "ℹ️ <b>How verification works</b>\n"
+                    "1) Join channel\n"
+                    "2) Join group\n"
+                    "3) Tap Verify Now\n"
+                    "Use Refresh Status anytime to re-check your progress."
+                ),
+            )
+        ),
+        verifier_btn_join_channel=os.getenv("VERIFIER_BTN_JOIN_CHANNEL", "📢 Join Channel"),
+        verifier_btn_join_group=os.getenv("VERIFIER_BTN_JOIN_GROUP", "👥 Join Group"),
+        verifier_btn_verify_now=os.getenv("VERIFIER_BTN_VERIFY_NOW", "✅ Verify Now"),
+        verifier_btn_refresh_status=os.getenv("VERIFIER_BTN_REFRESH_STATUS", "🔄 Refresh Status"),
+        verifier_btn_help=os.getenv("VERIFIER_BTN_HELP", "ℹ️ Help"),
+        verifier_btn_back=os.getenv("VERIFIER_BTN_BACK", "⬅️ Back"),
         reward_not_verified_text=_normalize_multiline(
             os.getenv(
                 "REWARD_NOT_VERIFIED_TEXT",
@@ -92,12 +138,15 @@ def get_settings() -> Settings:
             os.getenv(
                 "REWARD_DASHBOARD_TEXT",
                 (
-                    "🎁 Reward Dashboard\n"
-                    "Status: {reward_status}\n"
-                    "Referral count: {referral_count}\n"
-                    "Verification reward: {verification_reward}\n"
-                    "Referral rewards: {referral_reward}\n"
-                    "Invite link: {invite_link}"
+                    "🎁 <b>Rewards Dashboard</b>\n"
+                    "🛡 Verification: {verified_badge}\n"
+                    "📌 Reward status: <b>{reward_status}</b>\n"
+                    "👥 Referrals: <b>{referral_count}</b>\n"
+                    "🔗 Invite link: {invite_link}\n\n"
+                    "<b>Reward Breakdown</b>\n"
+                    "⏳ Pending: {pending_rewards}\n"
+                    "✅ Approved: {approved_rewards}\n"
+                    "❌ Rejected: {rejected_rewards}"
                 ),
             )
         ),
@@ -107,6 +156,55 @@ def get_settings() -> Settings:
                 "Claim request processed. {approved_count} rewards approved.",
             )
         ),
+        reward_how_it_works_text=_normalize_multiline(
+            os.getenv(
+                "REWARD_HOW_IT_WORKS_TEXT",
+                (
+                    "🧭 <b>How rewards work</b>\n"
+                    "• Verification reward is created when you pass membership checks.\n"
+                    "• Referral rewards are added after invited users verify.\n"
+                    "• Claim Status moves pending rewards to approved/rejected."
+                ),
+            )
+        ),
+        reward_btn_refresh=os.getenv("REWARD_BTN_REFRESH", "🔄 Refresh"),
+        reward_btn_my_rewards=os.getenv("REWARD_BTN_MY_REWARDS", "💰 My Rewards"),
+        reward_btn_referral_link=os.getenv("REWARD_BTN_REFERRAL_LINK", "🔗 My Referral Link"),
+        reward_btn_how_it_works=os.getenv("REWARD_BTN_HOW_IT_WORKS", "🧭 How It Works"),
+        reward_btn_claim_status=os.getenv("REWARD_BTN_CLAIM_STATUS", "🧾 Claim Status"),
+        reward_btn_back_dashboard=os.getenv("REWARD_BTN_BACK_DASHBOARD", "⬅️ Back to Dashboard"),
+        welcome_message_text=_normalize_multiline(
+            os.getenv(
+                "WELCOME_MESSAGE_TEXT",
+                "👋 Welcome {first_name} to {chat_title}!\nRead the rules and enjoy your stay.",
+            )
+        ),
+        welcome_button_text=os.getenv("WELCOME_BUTTON_TEXT", "📌 Group Rules"),
+        welcome_button_url=os.getenv("WELCOME_BUTTON_URL", "https://t.me/example_group"),
+        welcome_start_text=_normalize_multiline(
+            os.getenv(
+                "WELCOME_START_TEXT",
+                (
+                    "👋 <b>Welcome Bot Dashboard</b>\n"
+                    "I greet new members with a polished, configurable welcome message."
+                ),
+            )
+        ),
+        welcome_help_text=_normalize_multiline(
+            os.getenv(
+                "WELCOME_HELP_TEXT",
+                (
+                    "ℹ️ <b>Welcome bot tips</b>\n"
+                    "• Supports placeholders: {first_name}, {username}, {chat_title}\n"
+                    "• Uses backend welcome settings per chat\n"
+                    "• Ignores bot accounts when IGNORE_BOTS=true"
+                ),
+            )
+        ),
+        welcome_btn_refresh=os.getenv("WELCOME_BTN_REFRESH", "🔄 Refresh Settings"),
+        welcome_btn_preview=os.getenv("WELCOME_BTN_PREVIEW", "🧪 Preview Message"),
+        welcome_btn_help=os.getenv("WELCOME_BTN_HELP", "ℹ️ Help"),
+        welcome_btn_back=os.getenv("WELCOME_BTN_BACK", "⬅️ Back"),
         ignore_bots=_to_bool(os.getenv("IGNORE_BOTS"), default=True),
         log_level=os.getenv("LOG_LEVEL", "INFO").upper(),
     )
