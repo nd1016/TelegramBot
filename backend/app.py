@@ -374,28 +374,6 @@ async def verify_membership(payload: VerifyMembershipRequest, db: Session = Depe
             )
         )
 
-        referral_event = db.scalar(select(ReferralEvent).where(ReferralEvent.invited_user_id == user.id))
-        if referral_event and referral_event.status == RewardStatus.pending and referral_event.inviter_user_id != user.id:
-            referral_event.status = RewardStatus.approved
-            referral_event.verified_at = datetime.utcnow()
-
-            existing_ref_reward = db.scalar(
-                select(Reward).where(
-                    Reward.user_id == referral_event.inviter_user_id,
-                    Reward.reward_type == RewardType.referral,
-                    Reward.source_user_id == user.id,
-                )
-            )
-            if existing_ref_reward is None:
-                db.add(
-                    Reward(
-                        user_id=referral_event.inviter_user_id,
-                        reward_type=RewardType.referral,
-                        status=RewardStatus.pending,
-                        amount=settings.referral_reward_amount,
-                        source_user_id=user.id,
-                    )
-                )
 
     try:
         db.commit()
@@ -458,9 +436,29 @@ def record_join_event(payload: RecordJoinEventRequest, db: Session = Depends(get
             inviter_user_id=ref_link.user_id,
             invited_user_id=invited_user.id,
             referral_link_id=ref_link.id,
-            status=RewardStatus.pending,
+            status=RewardStatus.approved,
+            verified_at=datetime.utcnow(),
         )
     )
+
+    existing_ref_reward = db.scalar(
+        select(Reward).where(
+            Reward.user_id == ref_link.user_id,
+            Reward.reward_type == RewardType.referral,
+            Reward.source_user_id == invited_user.id,
+        )
+    )
+    if existing_ref_reward is None:
+        db.add(
+            Reward(
+                user_id=ref_link.user_id,
+                reward_type=RewardType.referral,
+                status=RewardStatus.pending,
+                amount=settings.referral_reward_amount,
+                source_user_id=invited_user.id,
+            )
+        )
+
     db.commit()
     return {"recorded": True}
 

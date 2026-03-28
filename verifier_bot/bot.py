@@ -93,7 +93,7 @@ async def _render_or_edit_panel(
         await update.effective_message.reply_text(text=text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
 
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE, notice: str | None = None) -> None:
     try:
         result = await _fetch_verification_status(update, context)
     except Exception:
@@ -109,12 +109,43 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await _render_or_edit_panel(update, f"⚠️ {result['backend_error']}", _build_main_keyboard())
         return
 
-    await _render_or_edit_panel(update, _build_dashboard_text(result), _build_main_keyboard())
+    panel_text = _build_dashboard_text(result)
+    if notice:
+        panel_text = f"{notice}\n\n{panel_text}"
+    await _render_or_edit_panel(update, panel_text, _build_main_keyboard())
 
 
 async def verify_or_refresh(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     await query.answer()
+
+    if query.data == CB_VERIFY:
+        try:
+            result = await _fetch_verification_status(update, context)
+        except Exception:
+            logger.warning("Verification action failed", exc_info=True)
+            await _render_or_edit_panel(
+                update,
+                "⚠️ Verification service is temporarily unavailable. Please retry.",
+                _build_main_keyboard(),
+            )
+            return
+
+        if result.get("backend_error"):
+            await _render_or_edit_panel(update, f"⚠️ {result['backend_error']}", _build_main_keyboard())
+            return
+
+        if result.get("verified"):
+            await start(update, context, notice=settings.verifier_verify_success_text)
+        else:
+            missing_items = ", ".join(result.get("missing_items", [])) or "unknown"
+            await start(
+                update,
+                context,
+                notice=settings.verifier_verify_fail_text.format(missing_items=missing_items),
+            )
+        return
+
     await start(update, context)
 
 

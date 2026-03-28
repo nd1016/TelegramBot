@@ -13,14 +13,7 @@ if str(ROOT_DIR) not in sys.path:
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
-from telegram.ext import (
-    Application,
-    CallbackQueryHandler,
-    CommandHandler,
-    ContextTypes,
-    MessageHandler,
-    filters,
-)
+from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
 
 from reward_bot.api_client import BackendClient
 from shared.config import get_settings
@@ -55,9 +48,7 @@ def _main_keyboard() -> InlineKeyboardMarkup:
 
 
 def _back_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        [[InlineKeyboardButton(settings.reward_btn_back_dashboard, callback_data=CB_BACK)]]
-    )
+    return InlineKeyboardMarkup([[InlineKeyboardButton(settings.reward_btn_back_dashboard, callback_data=CB_BACK)]])
 
 
 def _safe_reward_status(status: str) -> str:
@@ -129,21 +120,13 @@ async def _show_panel(update: Update, text: str, keyboard: InlineKeyboardMarkup)
     query = update.callback_query
     if query and query.message:
         try:
-            await query.edit_message_text(
-                text=text,
-                reply_markup=keyboard,
-                parse_mode=ParseMode.HTML,
-            )
+            await query.edit_message_text(text=text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
             return
         except Exception:
             logger.exception("Failed editing reward dashboard message")
 
     if update.effective_message:
-        await update.effective_message.reply_text(
-            text=text,
-            reply_markup=keyboard,
-            parse_mode=ParseMode.HTML,
-        )
+        await update.effective_message.reply_text(text=text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
 
 
 async def show_dashboard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -167,9 +150,6 @@ async def show_dashboard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 async def claim_from_panel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
-    if query is None:
-        return
-
     await query.answer()
 
     user = update.effective_user
@@ -182,19 +162,12 @@ async def claim_from_panel(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await query.answer("Claim failed. Try again shortly.", show_alert=True)
         return
 
-    await query.answer(
-        settings.reward_claim_result_text.format(
-            approved_count=result.get("approved_count", 0)
-        )
-    )
+    await query.answer(settings.reward_claim_result_text.format(approved_count=result.get("approved_count", 0)))
     await show_dashboard(update, context)
 
 
 async def show_rewards_panel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
-    if query is None:
-        return
-
     await query.answer()
 
     dashboard = await _fetch_dashboard(update, context)
@@ -203,9 +176,6 @@ async def show_rewards_panel(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 async def show_referral_link_panel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
-    if query is None:
-        return
-
     await query.answer()
 
     dashboard = await _fetch_dashboard(update, context)
@@ -214,18 +184,12 @@ async def show_referral_link_panel(update: Update, context: ContextTypes.DEFAULT
 
 async def show_how_it_works(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
-    if query is None:
-        return
-
     await query.answer()
     await _show_panel(update, settings.reward_how_it_works_text, _back_keyboard())
 
 
 async def reward_callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
-    if query is None or query.data is None:
-        return
-
     action = query.data
 
     if action in {CB_REFRESH, CB_BACK}:
@@ -239,6 +203,8 @@ async def reward_callback_router(update: Update, context: ContextTypes.DEFAULT_T
         await show_how_it_works(update, context)
     elif action == CB_CLAIM:
         await claim_from_panel(update, context)
+    else:
+        await query.answer("This action is not available yet.", show_alert=True)
 
 
 async def claim(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

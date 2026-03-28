@@ -122,6 +122,9 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         settings_data = await _fetch_settings(update, context)
         _, chat_title = _resolve_chat_context(update)
         await _show_panel(update, _render_preview(settings_data, chat_title), _back_keyboard())
+        return
+
+    await query.answer("This action is not available yet.", show_alert=True)
 
 
 async def greet_new_members(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
