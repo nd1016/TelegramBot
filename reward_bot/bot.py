@@ -215,11 +215,15 @@ async def claim(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         result = await client.claim(user.id)
     except Exception:
         logger.exception("Failed to claim rewards")
-        await update.effective_message.reply_text("Temporary error while claiming. Please retry later.")
+        await update.effective_message.reply_text(
+            "Temporary error while claiming. Please retry later."
+        )
         return
 
     await update.effective_message.reply_text(
-        settings.reward_claim_result_text.format(approved_count=result.get("approved_count", 0))
+        settings.reward_claim_result_text.format(
+            approved_count=result.get("approved_count", 0)
+        )
     )
 
 

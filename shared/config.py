@@ -77,9 +77,13 @@ class Settings:
 
 def get_settings() -> Settings:
     return Settings(
-        database_url=os.getenv("DATABASE_URL", "postgresql+psycopg2://postgres:postgres@localhost:5432/rewards_db"),
+        database_url=os.getenv(
+            "DATABASE_URL",
+            "postgresql+psycopg2://postgres:postgres@localhost:5432/rewards_db",
+        ),
         backend_host=os.getenv("BACKEND_HOST", "0.0.0.0"),
         backend_port=int(os.getenv("BACKEND_PORT", "8000")),
+
         verifier_bot_token=os.getenv("VERIFIER_BOT_TOKEN", ""),
         reward_bot_token=os.getenv("REWARD_BOT_TOKEN", ""),
         welcome_bot_token=os.getenv("WELCOME_BOT_TOKEN", ""),
@@ -87,8 +91,11 @@ def get_settings() -> Settings:
         target_group_id=os.getenv("TARGET_GROUP_ID", ""),
         channel_join_url=os.getenv("CHANNEL_JOIN_URL", "https://t.me/example_channel"),
         group_join_url=os.getenv("GROUP_JOIN_URL", "https://t.me/example_group"),
+
         referral_reward_amount=float(os.getenv("REFERRAL_REWARD_AMOUNT", "5")),
         verification_reward_amount=float(os.getenv("VERIFICATION_REWARD_AMOUNT", "2")),
+
+        # ===== Verifier =====
         verifier_start_text=_normalize_multiline(
             os.getenv(
                 "VERIFIER_START_TEXT",
