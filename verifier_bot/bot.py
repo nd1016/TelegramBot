@@ -27,6 +27,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             [InlineKeyboardButton("Join Channel", url=settings.channel_join_url)],
             [InlineKeyboardButton("Join Group", url=settings.group_join_url)],
             [InlineKeyboardButton("Verify", callback_data="verify_membership")],
+            [InlineKeyboardButton("✨ Open Verifier Dashboard", url=f"{settings.web_dashboard_base_url}/dashboard/verifier")],
         ]
     )
     await update.effective_message.reply_text(settings.verifier_start_text, reply_markup=keyboard)
