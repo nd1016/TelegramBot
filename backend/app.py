@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import html
 import logging
 import secrets
 from datetime import datetime
+from urllib.parse import quote_plus
 
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
 from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -118,6 +121,182 @@ async def _is_member(bot_token: str, chat_id: str, user_id: int) -> bool:
     bot = _get_bot(bot_token)
     member = await bot.get_chat_member(chat_id=chat_id, user_id=user_id)
     return member.status in {"member", "administrator", "creator", "restricted"}
+
+
+@app.get("/", response_class=HTMLResponse)
+def app_home() -> str:
+    return _render_html_dashboard(
+        title="🤖 Bot Control Center",
+        subtitle="Manage verifier, reward, and welcome bot experiences.",
+        cards=[
+            {
+                "title": "Verifier Bot",
+                "desc": "Guide users through channel/group verification with one click.",
+                "action_label": "Open Verifier Dashboard",
+                "action_url": "/dashboard/verifier",
+            },
+            {
+                "title": "Reward Bot",
+                "desc": "Track verification reward status, referrals, and claim totals.",
+                "action_label": "Open Reward Dashboard",
+                "action_url": "/dashboard/reward",
+            },
+            {
+                "title": "Welcome Bot",
+                "desc": "Customize your group welcome message and CTA button.",
+                "action_label": "Open Welcome Dashboard",
+                "action_url": f"/dashboard/welcome?chat_id={quote_plus(settings.target_group_id)}",
+            },
+        ],
+    )
+
+
+@app.get("/dashboard/verifier", response_class=HTMLResponse)
+def verifier_dashboard_page() -> str:
+    return _render_html_dashboard(
+        title="✅ Verifier Bot Dashboard",
+        subtitle="Share these links with users so they can complete verification quickly.",
+        cards=[
+            {
+                "title": "Join Channel Link",
+                "desc": settings.channel_join_url,
+                "action_label": "Open Channel",
+                "action_url": settings.channel_join_url,
+            },
+            {
+                "title": "Join Group Link",
+                "desc": settings.group_join_url,
+                "action_label": "Open Group",
+                "action_url": settings.group_join_url,
+            },
+        ],
+    )
+
+
+@app.get("/dashboard/reward", response_class=HTMLResponse)
+def reward_dashboard_page() -> str:
+    return _render_html_dashboard(
+        title="🎁 Reward Bot Dashboard",
+        subtitle="Users can check status and claim rewards directly from Telegram.",
+        cards=[
+            {
+                "title": "Verification Reward",
+                "desc": f"Current amount: {settings.verification_reward_amount}",
+                "action_label": "Open API Dashboard Endpoint",
+                "action_url": "/docs#/default/get_dashboard_dashboard__telegram_user_id__get",
+            },
+            {
+                "title": "Referral Reward",
+                "desc": f"Current amount: {settings.referral_reward_amount}",
+                "action_label": "Open Claim Endpoint",
+                "action_url": "/docs#/default/claim_reward_status_rewards__telegram_user_id__claim_post",
+            },
+        ],
+    )
+
+
+@app.get("/dashboard/welcome", response_class=HTMLResponse)
+def welcome_dashboard_page(chat_id: str) -> str:
+    escaped_chat_id = html.escape(chat_id)
+    return f"""
+    <!doctype html>
+    <html>
+      <head>
+        <meta charset=\"utf-8\" />
+        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
+        <title>Welcome Bot Dashboard</title>
+        <style>
+          body {{ font-family: Inter, system-ui, sans-serif; background: #0f172a; color: #e2e8f0; padding: 24px; }}
+          .card {{ max-width: 760px; margin: 0 auto; background: #111827; border: 1px solid #334155; border-radius: 16px; padding: 20px; }}
+          input, textarea {{ width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #475569; background: #0b1220; color: #e2e8f0; margin-top: 8px; margin-bottom: 14px; }}
+          button {{ background: linear-gradient(90deg, #14b8a6, #6366f1); color: white; border: none; border-radius: 10px; padding: 10px 16px; cursor: pointer; font-weight: 600; }}
+          .hint {{ color: #94a3b8; font-size: 13px; }}
+        </style>
+      </head>
+      <body>
+        <div class=\"card\">
+          <h1>👋 Welcome Bot Dashboard</h1>
+          <p class=\"hint\">Customize the welcome experience for chat_id: <code>{escaped_chat_id}</code></p>
+          <form id=\"welcome-form\">
+            <label>Message Template</label>
+            <textarea id=\"message_template\" rows=\"5\"></textarea>
+            <p class=\"hint\">Available placeholders: {'{'}first_name{'}'}, {'{'}username{'}'}, {'{'}chat_title{'}'}.</p>
+            <label>Button Text</label>
+            <input id=\"button_text\" type=\"text\" />
+            <label>Button URL</label>
+            <input id=\"button_url\" type=\"url\" />
+            <button type=\"submit\">Save Welcome Settings</button>
+          </form>
+          <p id=\"status\" class=\"hint\"></p>
+        </div>
+        <script>
+          const chatId = {chat_id!r};
+          async function load() {{
+            const res = await fetch(`/welcome-settings/${{encodeURIComponent(chatId)}}`);
+            const data = await res.json();
+            document.getElementById('message_template').value = data.message_template || '';
+            document.getElementById('button_text').value = data.button_text || '';
+            document.getElementById('button_url').value = data.button_url || '';
+          }}
+          document.getElementById('welcome-form').addEventListener('submit', async (e) => {{
+            e.preventDefault();
+            const payload = {{
+              chat_id: chatId,
+              message_template: document.getElementById('message_template').value,
+              button_text: document.getElementById('button_text').value || null,
+              button_url: document.getElementById('button_url').value || null,
+            }};
+            const res = await fetch('/welcome-settings', {{
+              method: 'POST',
+              headers: {{'Content-Type': 'application/json'}},
+              body: JSON.stringify(payload),
+            }});
+            document.getElementById('status').textContent = res.ok ? 'Saved successfully ✅' : 'Save failed ❌';
+          }});
+          load();
+        </script>
+      </body>
+    </html>
+    """
+
+
+def _render_html_dashboard(title: str, subtitle: str, cards: list[dict[str, str]]) -> str:
+    card_html = "\n".join(
+        f"""
+        <div class=\"card\">
+          <h2>{html.escape(card['title'])}</h2>
+          <p>{html.escape(card['desc'])}</p>
+          <a href=\"{html.escape(card['action_url'])}\">{html.escape(card['action_label'])}</a>
+        </div>
+        """
+        for card in cards
+    )
+    return f"""
+    <!doctype html>
+    <html>
+      <head>
+        <meta charset=\"utf-8\" />
+        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
+        <title>{html.escape(title)}</title>
+        <style>
+          body {{ font-family: Inter, system-ui, sans-serif; background: #020617; color: #e2e8f0; margin: 0; padding: 28px; }}
+          .wrap {{ max-width: 980px; margin: 0 auto; }}
+          h1 {{ margin-bottom: 8px; }}
+          .sub {{ color: #94a3b8; margin-bottom: 20px; }}
+          .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }}
+          .card {{ background: linear-gradient(140deg, #0f172a, #1e293b); border-radius: 16px; border: 1px solid #334155; padding: 18px; }}
+          .card a {{ display: inline-block; margin-top: 12px; text-decoration: none; color: white; background: linear-gradient(90deg, #14b8a6, #4f46e5); border-radius: 10px; padding: 10px 14px; font-weight: 600; }}
+        </style>
+      </head>
+      <body>
+        <div class=\"wrap\">
+          <h1>{html.escape(title)}</h1>
+          <p class=\"sub\">{html.escape(subtitle)}</p>
+          <div class=\"grid\">{card_html}</div>
+        </div>
+      </body>
+    </html>
+    """
 
 
 @app.post("/verify-membership", response_model=VerifyMembershipResponse)

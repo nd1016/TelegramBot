@@ -9,13 +9,11 @@ This project provides a **Telegram-native UX** (no external frontend required):
 
 ## Architecture
 
-```text
-verifier_bot/   -> in-chat verification panel + membership verification actions
-reward_bot/     -> in-chat reward dashboard + referral tracking
-welcome_bot/    -> in-chat settings panel + new-member welcome messages
-backend/        -> API endpoints (verification, rewards, referrals, welcome settings)
-shared/         -> config, DB session, models, schemas, logging, Telegram UI helpers
-```
+- `verifier_bot/` -> in-chat verification panel + membership verification actions
+- `reward_bot/` -> in-chat reward dashboard + referral tracking
+- `welcome_bot/` -> in-chat settings panel + new-member welcome messages
+- `backend/` -> API endpoints (verification, rewards, referrals, welcome settings)
+- `shared/` -> config, DB session, models, schemas, logging, Telegram UI helpers
 
 ## Telegram-native dashboard UX
 
@@ -64,59 +62,3 @@ shared/         -> config, DB session, models, schemas, logging, Telegram UI hel
 1. Copy env template:
    ```bash
    cp .env.example .env
-   ```
-2. Edit `.env` with your real Telegram tokens/IDs.
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-4. Run backend:
-   ```bash
-   uvicorn backend.app:app --host 127.0.0.1 --port 8000 --reload
-   ```
-5. Run bots:
-   ```bash
-   python -m verifier_bot.bot
-   python -m reward_bot.bot
-   python -m welcome_bot.bot
-   ```
-
-
-## UI customization
-
-All panel text and button labels are configurable from `.env` (for example: `VERIFIER_BTN_*`, `REWARD_BTN_*`, `WELCOME_BTN_*`).
-
-## Copy/paste snippets
-
-### Update welcome settings
-```bash
-curl -X POST http://127.0.0.1:8000/welcome-settings \
-  -H "Content-Type: application/json" \
-  -d '{
-    "chat_id": "-1009876543210",
-    "message_template": "👋 Welcome {first_name} to {chat_title}! Please read the rules.",
-    "button_text": "📌 Rules",
-    "button_url": "https://t.me/your_group/1"
-  }'
-```
-
-## Telegram admin permissions checklist
-
-### Verifier Bot
-- Added to both target channel and group
-- Can read member status
-
-### Reward Bot
-- Admin in target group
-- Can create invite links
-- Can receive join updates
-
-### Welcome Bot
-- Added to target group
-- Can send welcome messages
-- Can receive member join updates
-
-## Notes
-
-- `Base.metadata.create_all()` creates required tables including `welcome_settings`.
-- This starter keeps UX inside Telegram (inline keyboards + callback navigation).

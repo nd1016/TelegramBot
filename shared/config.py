@@ -77,25 +77,30 @@ class Settings:
 
 def get_settings() -> Settings:
     return Settings(
-        database_url=os.getenv("DATABASE_URL", "postgresql+psycopg2://postgres:postgres@localhost:5432/rewards_db"),
+        database_url=os.getenv(
+            "DATABASE_URL",
+            "postgresql+psycopg2://postgres:postgres@localhost:5432/rewards_db",
+        ),
         backend_host=os.getenv("BACKEND_HOST", "0.0.0.0"),
         backend_port=int(os.getenv("BACKEND_PORT", "8000")),
+
         verifier_bot_token=os.getenv("VERIFIER_BOT_TOKEN", ""),
         reward_bot_token=os.getenv("REWARD_BOT_TOKEN", ""),
         welcome_bot_token=os.getenv("WELCOME_BOT_TOKEN", ""),
+
         target_channel_id=os.getenv("TARGET_CHANNEL_ID", ""),
         target_group_id=os.getenv("TARGET_GROUP_ID", ""),
         channel_join_url=os.getenv("CHANNEL_JOIN_URL", "https://t.me/example_channel"),
         group_join_url=os.getenv("GROUP_JOIN_URL", "https://t.me/example_group"),
+
         referral_reward_amount=float(os.getenv("REFERRAL_REWARD_AMOUNT", "5")),
         verification_reward_amount=float(os.getenv("VERIFICATION_REWARD_AMOUNT", "2")),
+
+        # ===== Verifier =====
         verifier_start_text=_normalize_multiline(
             os.getenv(
                 "VERIFIER_START_TEXT",
-                (
-                    "🔐 <b>Verification Dashboard</b>\n"
-                    "Keep your access active by joining both destinations and tapping verify."
-                ),
+                "🔐 <b>Verification Dashboard</b>\nKeep your access active by joining both destinations and tapping verify.",
             )
         ),
         verifier_verify_success_text=_normalize_multiline(
@@ -113,13 +118,7 @@ def get_settings() -> Settings:
         verifier_help_text=_normalize_multiline(
             os.getenv(
                 "VERIFIER_HELP_TEXT",
-                (
-                    "ℹ️ <b>How verification works</b>\n"
-                    "1) Join channel\n"
-                    "2) Join group\n"
-                    "3) Tap Verify Now\n"
-                    "Use Refresh Status anytime to re-check your progress."
-                ),
+                "ℹ️ <b>How verification works</b>\n1) Join channel\n2) Join group\n3) Tap Verify Now\nUse Refresh Status anytime to re-check your progress.",
             )
         ),
         verifier_btn_join_channel=os.getenv("VERIFIER_BTN_JOIN_CHANNEL", "📢 Join Channel"),
@@ -128,6 +127,8 @@ def get_settings() -> Settings:
         verifier_btn_refresh_status=os.getenv("VERIFIER_BTN_REFRESH_STATUS", "🔄 Refresh Status"),
         verifier_btn_help=os.getenv("VERIFIER_BTN_HELP", "ℹ️ Help"),
         verifier_btn_back=os.getenv("VERIFIER_BTN_BACK", "⬅️ Back"),
+
+        # ===== Reward =====
         reward_not_verified_text=_normalize_multiline(
             os.getenv(
                 "REWARD_NOT_VERIFIED_TEXT",
@@ -137,17 +138,7 @@ def get_settings() -> Settings:
         reward_dashboard_text=_normalize_multiline(
             os.getenv(
                 "REWARD_DASHBOARD_TEXT",
-                (
-                    "🎁 <b>Rewards Dashboard</b>\n"
-                    "🛡 Verification: {verified_badge}\n"
-                    "📌 Reward status: <b>{reward_status}</b>\n"
-                    "👥 Referrals: <b>{referral_count}</b>\n"
-                    "🔗 Invite link: {invite_link}\n\n"
-                    "<b>Reward Breakdown</b>\n"
-                    "⏳ Pending: {pending_rewards}\n"
-                    "✅ Approved: {approved_rewards}\n"
-                    "❌ Rejected: {rejected_rewards}"
-                ),
+                "🎁 <b>Rewards Dashboard</b>\n🛡 Verification: {verified_badge}\n📌 Reward status: <b>{reward_status}</b>\n👥 Referrals: <b>{referral_count}</b>\n🔗 Invite link: {invite_link}\n\n<b>Reward Breakdown</b>\n⏳ Pending: {pending_rewards}\n✅ Approved: {approved_rewards}\n❌ Rejected: {rejected_rewards}",
             )
         ),
         reward_claim_result_text=_normalize_multiline(
@@ -159,12 +150,7 @@ def get_settings() -> Settings:
         reward_how_it_works_text=_normalize_multiline(
             os.getenv(
                 "REWARD_HOW_IT_WORKS_TEXT",
-                (
-                    "🧭 <b>How rewards work</b>\n"
-                    "• Verification reward is created when you pass membership checks.\n"
-                    "• Referral rewards are added after invited users verify.\n"
-                    "• Claim Status moves pending rewards to approved/rejected."
-                ),
+                "🧭 <b>How rewards work</b>\n• Verification reward is created when you pass membership checks.\n• Referral rewards are added after invited users verify.\n• Claim Status moves pending rewards to approved/rejected.",
             )
         ),
         reward_btn_refresh=os.getenv("REWARD_BTN_REFRESH", "🔄 Refresh"),
@@ -173,6 +159,8 @@ def get_settings() -> Settings:
         reward_btn_how_it_works=os.getenv("REWARD_BTN_HOW_IT_WORKS", "🧭 How It Works"),
         reward_btn_claim_status=os.getenv("REWARD_BTN_CLAIM_STATUS", "🧾 Claim Status"),
         reward_btn_back_dashboard=os.getenv("REWARD_BTN_BACK_DASHBOARD", "⬅️ Back to Dashboard"),
+
+        # ===== Welcome =====
         welcome_message_text=_normalize_multiline(
             os.getenv(
                 "WELCOME_MESSAGE_TEXT",
@@ -184,27 +172,20 @@ def get_settings() -> Settings:
         welcome_start_text=_normalize_multiline(
             os.getenv(
                 "WELCOME_START_TEXT",
-                (
-                    "👋 <b>Welcome Bot Dashboard</b>\n"
-                    "I greet new members with a polished, configurable welcome message."
-                ),
+                "👋 <b>Welcome Bot Dashboard</b>\nI greet new members with a polished, configurable welcome message.",
             )
         ),
         welcome_help_text=_normalize_multiline(
             os.getenv(
                 "WELCOME_HELP_TEXT",
-                (
-                    "ℹ️ <b>Welcome bot tips</b>\n"
-                    "• Supports placeholders: {first_name}, {username}, {chat_title}\n"
-                    "• Uses backend welcome settings per chat\n"
-                    "• Ignores bot accounts when IGNORE_BOTS=true"
-                ),
+                "ℹ️ <b>Welcome bot tips</b>\n• Supports placeholders: {first_name}, {username}, {chat_title}\n• Uses backend welcome settings per chat\n• Ignores bot accounts when IGNORE_BOTS=true",
             )
         ),
         welcome_btn_refresh=os.getenv("WELCOME_BTN_REFRESH", "🔄 Refresh Settings"),
         welcome_btn_preview=os.getenv("WELCOME_BTN_PREVIEW", "🧪 Preview Message"),
         welcome_btn_help=os.getenv("WELCOME_BTN_HELP", "ℹ️ Help"),
         welcome_btn_back=os.getenv("WELCOME_BTN_BACK", "⬅️ Back"),
+
         ignore_bots=_to_bool(os.getenv("IGNORE_BOTS"), default=True),
         log_level=os.getenv("LOG_LEVEL", "INFO").upper(),
     )
