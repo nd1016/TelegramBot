@@ -1,10 +1,11 @@
-"""Reward bot entrypoint with Telegram-native dashboard UX."""
+"""Reward bot entrypoint - Simplified Single-Page Hub using Message Editing & Hard Refreshes."""
 
 from __future__ import annotations
 
 import html
 import logging
 import sys
+import time
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -13,271 +14,168 @@ if str(ROOT_DIR) not in sys.path:
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
-from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
+from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ChatMemberHandler, ContextTypes
+from telegram.error import BadRequest
 
 from reward_bot.api_client import BackendClient
 from shared.config import get_settings
 from shared.logging_utils import setup_logging
-from shared.telegram_ui import bool_badge
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
 
+# Action Constants
 CB_REFRESH = "reward:refresh"
-CB_REWARDS = "reward:rewards"
-CB_LINK = "reward:link"
-CB_HOW = "reward:how"
-CB_CLAIM = "reward:claim"
-CB_BACK = "reward:back"
-
 
 def _main_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        [
-            [
-                InlineKeyboardButton(settings.reward_btn_refresh, callback_data=CB_REFRESH),
-                InlineKeyboardButton(settings.reward_btn_my_rewards, callback_data=CB_REWARDS),
-            ],
-            [
-                InlineKeyboardButton(settings.reward_btn_referral_link, callback_data=CB_LINK),
-                InlineKeyboardButton(settings.reward_btn_how_it_works, callback_data=CB_HOW),
-            ],
-            [InlineKeyboardButton(settings.reward_btn_claim_status, callback_data=CB_CLAIM)],
-        ]
-    )
-
-
-def _back_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup([[InlineKeyboardButton(settings.reward_btn_back_dashboard, callback_data=CB_BACK)]])
-
-
-def _safe_reward_status(status: str) -> str:
-    mapping = {
-        "pending": "⏳ Pending",
-        "approved": "✅ Approved",
-        "rejected": "❌ Rejected",
-        "not_verified": "⚠️ Not Verified",
-    }
-    return mapping.get(status, status)
-
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔄 Refresh Hub", callback_data=CB_REFRESH)],
+        [InlineKeyboardButton("⬅️ Back to Verifier Dashboard", url=settings.verifier_bot_url)]
+    ])
 
 def _dashboard_text(dashboard: dict) -> str:
-    invite_link = dashboard.get("invite_link") or "Not created yet"
-    verified_badge = bool_badge(dashboard.get("verified", False))
+    raw_invite = dashboard.get("invite_link")
+    if raw_invite:
+        link_display = f"<code>{html.escape(raw_invite)}</code>"
+    else:
+        link_display = "<i>Tap '🔄 Refresh Hub' to generate!</i>"
 
-    return settings.reward_dashboard_text.format(
-        verified_badge=verified_badge,
-        reward_status=_safe_reward_status(dashboard.get("reward_status", "pending")),
-        referral_count=dashboard.get("referral_count", 0),
-        invite_link=html.escape(invite_link),
-        pending_rewards=dashboard.get("pending_rewards", 0),
-        approved_rewards=dashboard.get("approved_rewards", 0),
-        rejected_rewards=dashboard.get("rejected_rewards", 0),
-    )
-
-
-def _rewards_panel_text(dashboard: dict) -> str:
-    verification_total = dashboard.get("verification_reward", 0)
-    referral_total = dashboard.get("referral_reward", 0)
-    total_value = verification_total + referral_total
-
-    return (
-        "💰 <b>My Rewards</b>\n"
-        f"• Verification rewards total: <b>{verification_total}</b>\n"
-        f"• Referral rewards total: <b>{referral_total}</b>\n"
-        f"• Overall value: <b>{total_value}</b>\n\n"
-        "<b>Status counts</b>\n"
-        f"⏳ Pending: {dashboard.get('pending_rewards', 0)}\n"
-        f"✅ Approved: {dashboard.get('approved_rewards', 0)}\n"
-        f"❌ Rejected: {dashboard.get('rejected_rewards', 0)}"
-    )
-
-
-def _referral_panel_text(dashboard: dict) -> str:
-    link = dashboard.get("invite_link") or "Invite link not available yet. Tap Refresh."
-    return (
-        "🔗 <b>My Referral Link</b>\n"
-        f"<code>{html.escape(link)}</code>\n\n"
-        f"👥 Approved referrals: <b>{dashboard.get('referral_count', 0)}</b>"
-    )
-
+    is_verified = dashboard.get("verified", False)
+    verified_text = "✅ Verified Active" if is_verified else "⚠️ Unverified"
+    
+    v_reward = dashboard.get("verification_reward", 0)
+    r_reward = dashboard.get("referral_reward", 0)
+    total_coins = v_reward + r_reward
+    
+    try:
+        return settings.reward_dashboard_text.format(
+            total_coins=total_coins,
+            verified_text=verified_text,
+            referral_count=dashboard.get('referral_count', 0),
+            pending_rewards=dashboard.get('pending_rewards', 0),
+            link_display=link_display,
+            last_updated=time.strftime('%H:%M:%S')
+        )
+    except KeyError as e:
+        logger.error(f"Missing variable in REWARD_DASHBOARD_TEXT: {e}")
+        return "⚠️ Error formatting dashboard text. Check your .env file variables."
 
 async def _fetch_dashboard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> dict:
     user = update.effective_user
     client: BackendClient = context.application.bot_data["backend_client"]
 
     dashboard = await client.get_dashboard(user.id)
+    
     if dashboard.get("verified") and not dashboard.get("invite_link"):
         try:
             link_result = await client.create_link(user.id)
             dashboard["invite_link"] = link_result["invite_link"]
-        except Exception:
-            logger.exception("Failed to create invite link")
+        except Exception as e:
+            logger.error(f"Failed to create invite link: {e}")
+            dashboard["invite_link"] = "⚠️ ERROR: Make Reward Bot an Admin with 'Invite via Link' permission!"
+            
     return dashboard
 
-
-async def _show_panel(update: Update, text: str, keyboard: InlineKeyboardMarkup) -> None:
+async def show_dashboard(update: Update, context: ContextTypes.DEFAULT_TYPE, send_new: bool = False) -> None:
     query = update.callback_query
-    if query and query.message:
-        try:
-            await query.edit_message_text(text=text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
-            return
-        except Exception:
-            logger.exception("Failed editing reward dashboard message")
-
-    if update.effective_message:
-        await update.effective_message.reply_text(text=text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
-
-
-async def show_dashboard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    
     try:
         dashboard = await _fetch_dashboard(update, context)
-    except Exception:
-        logger.exception("Failed to fetch dashboard")
-        await _show_panel(
-            update,
-            "⚠️ Temporary error loading your dashboard. Please tap Refresh.",
-            _main_keyboard(),
+    except Exception as e:
+        logger.error(f"Backend error: {e}")
+        if query:
+            await query.answer("🚨 Server error. Is the backend running?", show_alert=True)
+        else:
+            await update.effective_message.reply_text("🚨 Server error. Is the backend running?")
+        return
+
+    text = _dashboard_text(dashboard)
+    keyboard = _main_keyboard()
+
+    # THE "HARD REFRESH" LOGIC: Delete the old message and send a completely new one
+    if send_new and query and query.message:
+        try:
+            await query.message.delete()
+        except BadRequest:
+            pass # Ignore if the message is too old to delete
+            
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id, 
+            text=text, 
+            reply_markup=keyboard, 
+            parse_mode=ParseMode.HTML, 
+            disable_web_page_preview=True
         )
         return
 
-    if not dashboard.get("verified"):
-        await _show_panel(update, settings.reward_not_verified_text, _main_keyboard())
-        return
-
-    await _show_panel(update, _dashboard_text(dashboard), _main_keyboard())
-
-
-async def claim_from_panel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    await query.answer()
-
-    user = update.effective_user
-    client: BackendClient = context.application.bot_data["backend_client"]
-
-    try:
-        result = await client.claim(user.id)
-    except Exception:
-        logger.exception("Failed claim from dashboard")
-        await query.answer("Claim failed. Try again shortly.", show_alert=True)
-        return
-
-    await query.answer(settings.reward_claim_result_text.format(approved_count=result.get("approved_count", 0)))
-    await show_dashboard(update, context)
-
-
-async def show_rewards_panel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    await query.answer()
-
-    dashboard = await _fetch_dashboard(update, context)
-    await _show_panel(update, _rewards_panel_text(dashboard), _back_keyboard())
-
-
-async def show_referral_link_panel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    await query.answer()
-
-    dashboard = await _fetch_dashboard(update, context)
-    await _show_panel(update, _referral_panel_text(dashboard), _back_keyboard())
-
-
-async def show_how_it_works(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    await query.answer()
-    await _show_panel(update, settings.reward_how_it_works_text, _back_keyboard())
-
+    # Normal logic (used when typing /start)
+    if query and query.message:
+        try:
+            await query.edit_message_text(text=text, reply_markup=keyboard, parse_mode=ParseMode.HTML, disable_web_page_preview=True)
+        except BadRequest as e:
+            if "Message is not modified" not in str(e):
+                logger.exception("Failed to edit message")
+    elif update.effective_message:
+        await update.effective_message.reply_text(text=text, reply_markup=keyboard, parse_mode=ParseMode.HTML, disable_web_page_preview=True)
 
 async def reward_callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
-    action = query.data
-
-    if action in {CB_REFRESH, CB_BACK}:
+    
+    try:
         await query.answer()
-        await show_dashboard(update, context)
-    elif action == CB_REWARDS:
-        await show_rewards_panel(update, context)
-    elif action == CB_LINK:
-        await show_referral_link_panel(update, context)
-    elif action == CB_HOW:
-        await show_how_it_works(update, context)
-    elif action == CB_CLAIM:
-        await claim_from_panel(update, context)
-    else:
-        await query.answer("This action is not available yet.", show_alert=True)
+    except Exception:
+        pass 
 
+    if query.data == CB_REFRESH:
+        # We tell show_dashboard to do a "Hard Refresh" by passing send_new=True
+        await show_dashboard(update, context, send_new=True)
 
-async def claim(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    user = update.effective_user
+async def track_join(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Correctly intercepts hidden invite link data when a user joins."""
+    chat_member_update = update.chat_member
+    if not chat_member_update:
+        return
+
+    # Extract the exact unique link they used to join
+    invite_link_obj = chat_member_update.invite_link
+    if not invite_link_obj:
+        return
+
+    member = chat_member_update.new_chat_member.user
+    if settings.ignore_bots and member.is_bot:
+        return
+
+    # Only trigger when they actually become a member
+    new_status = chat_member_update.new_chat_member.status
+    if new_status not in ["member", "restricted"]:
+        return
+
     client: BackendClient = context.application.bot_data["backend_client"]
 
     try:
-        result = await client.claim(user.id)
-    except Exception:
-        logger.exception("Failed to claim rewards")
-        await update.effective_message.reply_text(
-            "Temporary error while claiming. Please retry later."
+        await client.record_join_event(
+            invited_telegram_user_id=member.id,
+            invited_username=member.username,
+            invited_first_name=member.first_name,
+            invite_link=invite_link_obj.invite_link,
         )
-        return
-
-    await update.effective_message.reply_text(
-        settings.reward_claim_result_text.format(
-            approved_count=result.get("approved_count", 0)
-        )
-    )
-
-
-async def track_join(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not update.message or not update.message.new_chat_members:
-        return
-
-    if settings.ignore_bots:
-        new_members = [member for member in update.message.new_chat_members if not member.is_bot]
-    else:
-        new_members = list(update.message.new_chat_members)
-
-    if not new_members:
-        return
-
-    invite_link = update.message.invite_link
-    if invite_link is None:
-        return
-
-    client: BackendClient = context.application.bot_data["backend_client"]
-
-    for member in new_members:
-        try:
-            await client.record_join_event(
-                invited_telegram_user_id=member.id,
-                invited_username=member.username,
-                invited_first_name=member.first_name,
-                invite_link=invite_link.invite_link,
-            )
-        except Exception:
-            logger.exception("Failed recording referral event for user=%s", member.id)
-
-
-async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
-    logger.exception("Unhandled reward bot error update=%s", update, exc_info=context.error)
-
+        logger.info(f"✅ Successfully recorded referral for user {member.id}")
+    except Exception as e:
+        logger.exception(f"❌ Failed recording referral event for user={member.id}. Error: {e}")
 
 def main() -> None:
     setup_logging(settings.log_level)
-
     app = Application.builder().token(settings.reward_bot_token).build()
-    app.bot_data["backend_client"] = BackendClient(
-        f"http://{settings.backend_host}:{settings.backend_port}"
-    )
+    app.bot_data["backend_client"] = BackendClient(f"http://{settings.backend_host}:{settings.backend_port}")
 
     app.add_handler(CommandHandler("start", show_dashboard))
-    app.add_handler(CommandHandler("claim", claim))
-    app.add_handler(CallbackQueryHandler(reward_callback_router, pattern=r"^reward:"))
-    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, track_join))
-    app.add_error_handler(on_error)
-
+    app.add_handler(CallbackQueryHandler(reward_callback_router))
+    app.add_handler(ChatMemberHandler(track_join, ChatMemberHandler.CHAT_MEMBER))
+    
     logger.info("Reward bot started")
-    app.run_polling(drop_pending_updates=True)
-
+    
+    # THE CRITICAL FIX: We must explicitly ask Telegram to send us 'chat_member' updates!
+    app.run_polling(drop_pending_updates=True, allowed_updates=["message", "callback_query", "chat_member"])
 
 if __name__ == "__main__":
     main()

@@ -35,6 +35,10 @@ class Settings:
     target_group_id: str
     channel_join_url: str
     group_join_url: str
+    
+    # NEW: Added Bot URLs for cross-linking
+    verifier_bot_url: str
+    reward_bot_url: str
 
     referral_reward_amount: float
     verification_reward_amount: float
@@ -92,6 +96,10 @@ def get_settings() -> Settings:
         channel_join_url=os.getenv("CHANNEL_JOIN_URL", "https://t.me/example_channel"),
         group_join_url=os.getenv("GROUP_JOIN_URL", "https://t.me/example_group"),
 
+        # NEW: Fetching Bot URLs from .env
+        verifier_bot_url=os.getenv("VERIFIER_BOT_URL", "https://t.me/your_verifier_bot"),
+        reward_bot_url=os.getenv("REWARD_BOT_URL", "https://t.me/your_reward_bot"),
+
         referral_reward_amount=float(os.getenv("REFERRAL_REWARD_AMOUNT", "5")),
         verification_reward_amount=float(os.getenv("VERIFICATION_REWARD_AMOUNT", "2")),
 
@@ -135,6 +143,8 @@ def get_settings() -> Settings:
         verifier_btn_refresh_status=os.getenv("VERIFIER_BTN_REFRESH_STATUS", "🔄 Refresh Status"),
         verifier_btn_help=os.getenv("VERIFIER_BTN_HELP", "ℹ️ Help"),
         verifier_btn_back=os.getenv("VERIFIER_BTN_BACK", "⬅️ Back"),
+        
+        # ===== Reward =====
         reward_not_verified_text=_normalize_multiline(
             os.getenv(
                 "REWARD_NOT_VERIFIED_TEXT",
@@ -180,6 +190,8 @@ def get_settings() -> Settings:
         reward_btn_how_it_works=os.getenv("REWARD_BTN_HOW_IT_WORKS", "🧭 How It Works"),
         reward_btn_claim_status=os.getenv("REWARD_BTN_CLAIM_STATUS", "🧾 Claim Status"),
         reward_btn_back_dashboard=os.getenv("REWARD_BTN_BACK_DASHBOARD", "⬅️ Back to Dashboard"),
+        
+        # ===== Welcome =====
         welcome_message_text=_normalize_multiline(
             os.getenv(
                 "WELCOME_MESSAGE_TEXT",
