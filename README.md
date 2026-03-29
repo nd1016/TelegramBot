@@ -1,151 +1,120 @@
-# 🌟 AutoGPT: the heart of the open-source agent ecosystem
 # Telegram Crypto Reward System (Production-Minded Starter)
 
-This project provides a clean, modular starter architecture for a crypto reward campaign using:
+This project provides a **Telegram-native UX** (no external frontend required):
 
-- **Verifier Bot** (python-telegram-bot)
-- **Reward Bot** (python-telegram-bot)
-- **Shared FastAPI backend**
-- **PostgreSQL + SQLAlchemy**
-- **Environment configuration via python-dotenv**
+- **Verifier Bot**: in-chat verification dashboard with progress + actions
+- **Reward Bot**: in-chat rewards dashboard with working callback buttons
+- **Welcome Bot**: in-chat control panel + configurable onboarding messages
+- **FastAPI Backend**: API service for verification, rewards, referrals, and welcome settings
 
 ## Architecture
 
 ```text
-verifier_bot/   -> verifies group/channel membership
-reward_bot/     -> user dashboard, claim command, join-event tracking
-backend/        -> API + reward/referral business logic
-shared/         -> config, DB session, models, schemas, logging
+verifier_bot/   -> in-chat verification panel + membership verification actions
+reward_bot/     -> in-chat reward dashboard + referral tracking
+welcome_bot/    -> in-chat settings panel + new-member welcome messages
+backend/        -> API endpoints (verification, rewards, referrals, welcome settings)
+shared/         -> config, DB session, models, schemas, logging, Telegram UI helpers
 ```
 
-## Project Structure
+## Reward flow (simple explanation)
 
-```text
-.
-├── verifier_bot/
-│   ├── __init__.py
-│   ├── api_client.py
-│   └── bot.py
-├── reward_bot/
-│   ├── __init__.py
-│   ├── api_client.py
-│   └── bot.py
-├── backend/
-│   ├── __init__.py
-│   └── app.py
-├── shared/
-│   ├── __init__.py
-│   ├── config.py
-│   ├── database.py
-│   ├── logging_utils.py
-│   ├── models.py
-│   └── schemas.py
-├── requirements.txt
-├── .env.example
-└── README.md
-```
+1. **Verification reward**
+   - User joins required channel + group.
+   - Verifier Bot calls backend verification.
+   - If both checks pass, backend marks user verified and creates verification reward.
 
-## Main Features
+2. **Referral reward**
+   - Verified user has a personal invite link.
+   - New user joins group through that link (`/referral-events/record`).
+   - Inviter reward is granted **only when invited user later completes verification**.
+   - Duplicate and self-referrals are prevented.
 
-### 1) Verifier Bot
-- `/start` shows buttons:
-  - Join Channel
-  - Join Group
-  - Verify
-- On **Verify** button tap, backend checks membership in both channel and group.
-- If user is in both: marked verified.
-- If missing one/both: returns friendly missing-items message.
+## Pending / approved / rejected statuses
 
-### 2) Reward Bot
-- `/start` checks backend dashboard.
-- If user is verified:
-  - shows reward status
-  - referral count
-  - personal invite link (creates one if missing)
-- If user is not verified: asks user to finish verification first.
-- `/claim` triggers reward claim-status handling.
+- `pending`: reward created but not yet finalized.
+- `approved`: reward finalized as earned.
+- `rejected`: reward denied (for example fraud-flag path).
 
-### 3) Referral Tracking
-- Verified users get unique invite links.
-- Join events from invite links are recorded.
-- Inviter gets referral reward only when invited user later becomes verified.
-- Duplicate rewards are prevented with DB constraints and checks.
+If you do not need manual review, you can auto-approve in your claim/admin flow and keep user-facing wording simple.
 
-### 4) Anti-abuse rules in this starter
-- One verification reward per user (enforced by app logic + uniqueness behavior).
-- One referral reward per invited user.
-- Self-referrals are rejected.
-- Reward statuses supported: `pending`, `approved`, `rejected`.
-- Placeholder `fraud_flag` exists on user profile.
+## Reward Bot UX
 
-### 5) Backend API Endpoints
+`/start` shows:
+- Verification status (Verified / Not Verified)
+- Verification reward status
+- Referral reward status
+- Total referrals
+- Personal invite link
+
+Buttons (all working):
+- Refresh
+- My Rewards
+- My Referral Link
+- How It Works
+- Back (in sub-pages)
+
+## API endpoints
+
 - `POST /verify-membership`
 - `POST /referral-links/create`
 - `POST /referral-events/record`
 - `GET /dashboard/{telegram_user_id}`
 - `POST /rewards/{telegram_user_id}/claim`
-
-### 6) Database Tables
-- `users`
-- `verifications`
-- `referral_links`
-- `referral_events`
-- `rewards`
+- `GET /welcome-settings/{chat_id}`
+- `POST /welcome-settings`
 
 ## Setup
 
-1. Copy env:
+1. Copy env template:
    ```bash
    cp .env.example .env
    ```
-2. Install deps:
+2. Edit `.env` with your real Telegram tokens/IDs.
+3. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
-3. Ensure PostgreSQL database exists and `DATABASE_URL` is valid.
+4. Run backend:
+   ```bash
+   uvicorn backend.app:app --host 127.0.0.1 --port 8000 --reload
+   ```
+5. Run bots:
+   ```bash
+   python -m verifier_bot.bot
+   python -m reward_bot.bot
+   python -m welcome_bot.bot
+   ```
 
-## Run Services (long polling)
+## UI customization
 
-Run backend:
+All panel text and button labels are configurable from `.env` (for example: `VERIFIER_BTN_*`, `REWARD_BTN_*`, `WELCOME_BTN_*`).
+
+## Quick API example: update welcome settings
+
 ```bash
-uvicorn backend.app:app --host 127.0.0.1 --port 8000 --reload
+curl -X POST http://127.0.0.1:8000/welcome-settings \
+  -H "Content-Type: application/json" \
+  -d '{
+    "chat_id": "-1009876543210",
+    "message_template": "👋 Welcome {first_name} to {chat_title}! Please read the rules.",
+    "button_text": "📌 Rules",
+    "button_url": "https://t.me/your_group/1"
+  }'
 ```
 
-Run verifier bot:
-```bash
-python -m verifier_bot.bot
-```
+## Telegram admin permissions checklist
 
-Run reward bot:
-```bash
-python -m reward_bot.bot
-```
+### Verifier Bot
+- Added to both target channel and group
+- Can read member status
 
-## Telegram Admin Notes (Required Permissions)
+### Reward Bot
+- Admin in target group
+- Can create invite links
+- Can receive join updates
 
-### Verifier Bot permissions
-- Must be added to both target **channel** and **group**.
-- Must have enough rights to read member status (`getChatMember` checks).
-
-### Reward Bot permissions
-- Must be admin in the target group with permission to **create invite links**.
-- Must receive join updates in the group (privacy mode and bot permissions should allow member updates).
-
-## Production Notes
-
-- Put backend + PostgreSQL behind proper network/security controls.
-- Add authentication/authorization for admin-level operations in real deployments.
-- Add Alembic migrations for schema evolution.
-- Add background jobs/queues for heavy processing.
-- Add observability: structured logs, metrics, and alerts.
-
-
-## Upgrade Note (Telegram IDs)
-
-Telegram user IDs can exceed 32-bit integer range. The `users.telegram_user_id` column uses `BIGINT`.
-
-If you already created tables with `INTEGER`, run:
-
-```sql
-ALTER TABLE users ALTER COLUMN telegram_user_id TYPE BIGINT;
-```
+### Welcome Bot
+- Added to target group
+- Can send welcome messages
+- Can receive member join updates

@@ -38,7 +38,24 @@ class DashboardResponse(BaseModel):
     verification_reward: float
     referral_reward: float
     invite_link: str | None
+    pending_rewards: int
+    approved_rewards: int
+    rejected_rewards: int
 
 
 class ClaimRewardResponse(BaseModel):
     approved_count: int
+
+
+class WelcomeSettingsResponse(BaseModel):
+    chat_id: str
+    message_template: str
+    button_text: str | None
+    button_url: str | None
+
+
+class UpsertWelcomeSettingsRequest(BaseModel):
+    chat_id: str
+    message_template: str
+    button_text: str | None = None
+    button_url: str | None = None
